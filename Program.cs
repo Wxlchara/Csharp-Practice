@@ -1,49 +1,113 @@
-﻿namespace ConsoleApp8;
+﻿using System.Xml.Serialization;
 
-class Program
+namespace XMLinClass
 {
-    static void Main(string[] args)
+    public class Movie
     {
-        string folderPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        Console.WriteLine(folderPath);
-        
-        string fileName = "example.txt";
-        
-        string fullPath = Path.Combine(folderPath, fileName);
-        Console.WriteLine(fullPath);
-        
-        File.Create(fullPath).Close();
-        File.WriteAllText(fullPath, "hello" + Environment.NewLine);
-        File.AppendAllText(fullPath, "world");
-        File.WriteAllText(fullPath, "hi again"); // WriteAllText удаляет старое содержимое
-        
-        string content = File.ReadAllText(fullPath);
-        string[] lines = File.ReadAllLines(fullPath);
-        foreach (string line in lines)
-        {
-            Console.WriteLine(line);
-        }
-        
-        string folderPath2 = Path.Combine(folderPath, "test");
-        string filePath = Path.Combine(folderPath2, "anothertext");
+        private string _name;
+        private int _duration;
+        private int[] _review;
+        public string Name => _name;
+        public int Duration => _duration;
+        public int[] Review => _review.ToArray();
 
-        if (!Directory.Exists(folderPath2))
+        public Movie(string name, int duration)
         {
-            Directory.CreateDirectory(folderPath2);
+            _name = name;
+            _duration = duration;
+            _review = new int[0];
         }
 
-        if (!File.Exists(filePath))
+        public void AddReview(int stars)
         {
-            File.Create(filePath).Close();
+            Array.Resize(ref _review, _review.Length + 1);
+            _review[_review.Length - 1] = stars;
         }
-        else
+    }
+
+    public class MovieDTO
+    {
+        // Свойства с публичными сеттерами
+        public string Name { get; set; }
+        public int Duration { get; set; }
+        public string MovieType { get; set; }
+        public int[] Review {get; set;}
+
+        // Конструктор без параметров
+        public MovieDTO()
         {
-            File.WriteAllText(filePath, "");
+            
         }
-        
-        string folderPath3 = Path.GetDirectoryName(folderPath);
-        string filePath = Path.GetFileName(folderPath);
-        Console.WriteLine(folderPath3);
-        Console.WriteLine(filePath);
+
+        // Movie -> MovieDTO
+        public MovieDTO(string name, int duration)
+        {
+            MovieType = nameof(Movie);
+            Name = name;
+            Duration = duration;
+        }
+
+        public MovieDTO(Movie movie)
+        {
+            MovieType = movie.GetType().Name;
+            Name = movie.Name;
+            Duration = movie.Duration;
+        }
+    }
+
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            Movie movie1 = new Movie("Harry Potter", 120);
+            MovieDTO movieDTO1 = new MovieDTO(movie1);
+            
+            string folderPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            string filePath = Path.Combine(folderPath, "movie.xml");
+            
+            var serealizer = new XmlSerializer(typeof(MovieDTO));
+            
+            // Сериализация
+            using (var writer = new StreamWriter(filePath))
+            {
+                serealizer.Serialize(writer, movieDTO1);
+            }
+            
+            // Десериализация
+            MovieDTO movieDTO2;
+            using (var reader = new StreamReader(filePath))
+            {
+                movieDTO2 = (MovieDTO)serealizer.Deserialize(reader);
+            }
+            
+            Movie movie2 = new Movie(movieDTO2.Name, movieDTO2.Duration);
+            foreach (int star in movieDTO2.Review)
+            {
+                movie2.AddReview(star);
+            }
+
+            // Проверка равенства изначального и полученного объекта
+            if (CompareMovies(movie1, movie2))
+            {
+                Console.WriteLine("Success");
+            }
+            else
+            {
+                Console.WriteLine("Not Success");
+            }
+        }
+
+        public static bool CompareMovies(Movie m1, Movie m2)
+        {
+            if  (m1.Name != m2.Name) return false;
+            if (m1.Duration != m2.Duration) return false;
+            if (m1.Review.Length != m2.Review.Length) return false;
+            for (int i = 0; i < m1.Review.Length; i++)
+            {
+                if (m1.Review[i] != m2.Review[i]) return false;
+            }
+            
+            return true;
+        }
     }
 }
